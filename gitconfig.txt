@@ -1,0 +1,154 @@
+====================================================
+  CARTASAPP — GUIA DE CONFIGURAÇÃO E COMANDOS
+====================================================
+
+-- Configuração do Git (rodar apenas uma vez)
+git config --global user.name SEU_USUARIO_GITHUB
+git config --global user.email SEU_EMAIL_GITHUB
+
+----------------------------------------------------
+-- CRIAR O PROJETO DO ZERO
+----------------------------------------------------
+
+-- Clonar o repositório
+git clone https://github.com/SEU_USUARIO/CartasApp.git
+
+-- Entrar na pasta
+cd CartasApp
+
+-- Mover o README antes de criar o Expo
+move README.md ..
+
+-- Criar o projeto Expo
+npx create-expo-app . --template blank
+
+-- Devolver o README
+move ..\README.md .
+
+----------------------------------------------------
+-- BIBLIOTECAS DO PROJETO
+----------------------------------------------------
+
+-- Navegação entre telas
+npm install @react-navigation/native @react-navigation/stack
+
+-- Dependências do React Navigation
+npx expo install react-native-screens react-native-gesture-handler react-native-safe-area-context react-native-reanimated
+
+-- Ícones
+npx expo install @expo/vector-icons
+
+-- Sons (para efeitos sonoros nos jogos)
+npx expo install expo-av
+
+-- Salvar dados localmente (pontuações, preferências)
+npx expo install @react-native-async-storage/async-storage
+
+----------------------------------------------------
+-- ESTRUTURA DE PASTAS (criar manualmente no VS Code)
+----------------------------------------------------
+
+src/
+├── screens/
+│   ├── HomeScreen.jsx         (tela inicial com lista de jogos)
+│   ├── TrucoScreen.jsx        (jogo de Truco)
+│   ├── CachetaScreen.jsx      (jogo de Cacheta)
+│   ├── PokerScreen.jsx        (jogo de Pôquer)
+│   ├── PacienciaScreen.jsx    (Paciência / Solitaire)
+│   └── PorcoScreen.jsx        (jogo de Porco)
+├── components/
+│   ├── Card.jsx               (componente de carta)
+│   ├── Hand.jsx               (mão do jogador)
+│   ├── ScoreBoard.jsx         (placar)
+│   └── GameMenu.jsx           (menu de cada jogo)
+├── game/
+│   ├── deck.js                (criação e embaralhamento do baralho)
+│   ├── trucoRules.js          (regras do Truco)
+│   ├── cachetaRules.js        (regras da Cacheta)
+│   ├── pokerRules.js          (regras do Pôquer)
+│   ├── pacienciaRules.js      (regras da Paciência)
+│   ├── porcoRules.js          (regras do Porco)
+│   └── aiLogic.js             (lógica da IA para todos os jogos)
+├── context/
+│   └── GameContext.jsx        (estado global do app)
+└── utils/
+    └── storage.js             (funções de salvar/carregar dados)
+
+----------------------------------------------------
+-- TODA VEZ QUE COMEÇAR A TRABALHAR NO PROJETO
+----------------------------------------------------
+
+cd CartasApp
+npx expo start
+
+-- Escanear o QR Code com o Expo Go no celular
+
+----------------------------------------------------
+-- RESTAURAR O PROJETO APÓS CLONAR EM OUTRO PC
+----------------------------------------------------
+
+cd CartasApp
+npm i
+npx expo start
+
+----------------------------------------------------
+-- FLUXO GIT — SALVAR E ENVIAR PARA O GITHUB
+----------------------------------------------------
+
+-- Verificar o que mudou
+git status
+
+-- Adicionar todas as alterações
+git add .
+
+-- Salvar com mensagem descritiva
+git commit -m "feat: descrição do que foi feito"
+
+-- Enviar para o GitHub
+git push origin main
+
+----------------------------------------------------
+-- PADRÃO DE MENSAGENS DE COMMIT (PT-BR)
+----------------------------------------------------
+
+feat: nova funcionalidade        (ex: feat: adicionar tela do Truco)
+fix: correção de bug             (ex: fix: corrigir embaralhamento das cartas)
+style: mudança visual            (ex: style: atualizar cores do menu inicial)
+refactor: melhoria no código     (ex: refactor: simplificar lógica da IA)
+docs: atualização de documentos  (ex: docs: atualizar README)
+
+-- EXEMPLOS REAIS DO PROJETO:
+git commit -m "feat: configuração inicial do projeto Expo"
+git commit -m "feat: adicionar estrutura de pastas do projeto"
+git commit -m "feat: instalar bibliotecas de navegação"
+git commit -m "feat: criar tela inicial com lista de jogos"
+git commit -m "feat: adicionar lógica do baralho"
+git commit -m "feat: criar tela do Truco"
+git commit -m "feat: criar tela da Cacheta"
+git commit -m "feat: criar tela do Pôquer"
+git commit -m "feat: criar tela da Paciência"
+git commit -m "feat: criar tela do Porco"
+git commit -m "feat: adicionar lógica da IA"
+git commit -m "feat: adicionar placar e pontuação"
+git commit -m "fix: corrigir regras do Truco"
+git commit -m "style: melhorar visual das cartas"
+git commit -m "refactor: organizar lógica dos jogos"
+
+----------------------------------------------------
+-- CONFIGURAÇÕES NO app.json
+----------------------------------------------------
+
+"userInterfaceStyle": "light",
+"scheme": "cartas-app",
+
+----------------------------------------------------
+-- JOGOS INCLUÍDOS NO APP
+----------------------------------------------------
+
+1. Truco       — contra IA, com pedido de truco e pontuação
+2. Cacheta     — contra IA, quem bater com menor pontuação vence
+3. Pôquer      — contra IA, com apostas e combinações de mãos
+4. Paciência   — single player, montar sequências no tableau
+5. Porco       — contra IA, não ultrapassar 21 pontos na rodada
+
+====================================================
