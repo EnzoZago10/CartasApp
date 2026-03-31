@@ -3,8 +3,8 @@
 ====================================================
 
 -- Configuração do Git (rodar apenas uma vez)
-git config --global user.name SEU_USUARIO_GITHUB
-git config --global user.email SEU_EMAIL_GITHUB
+git config --global user.name EnzoZago10
+git config --global user.email enzozago2010@gmail.com
 
 ----------------------------------------------------
 -- CRIAR O PROJETO DO ZERO
