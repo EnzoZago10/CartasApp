@@ -45,6 +45,39 @@ npx expo install expo-av
 npx expo install @react-native-async-storage/async-storage
 
 ----------------------------------------------------
+-- CRIAR ARQUIVOS NO POWERSHELL (Windows)
+----------------------------------------------------
+
+-- Criar pastas
+mkdir src
+mkdir src\screens
+mkdir src\components
+mkdir src\game
+mkdir src\context
+mkdir src\utils
+
+-- Criar arquivos (usar "ni" no PowerShell, NÃO usar "echo.")
+ni src\screens\HomeScreen.jsx
+ni src\screens\TrucoScreen.jsx
+ni src\screens\CachetaScreen.jsx
+ni src\screens\PokerScreen.jsx
+ni src\screens\PacienciaScreen.jsx
+ni src\screens\PorcoScreen.jsx
+ni src\components\Card.jsx
+ni src\components\Hand.jsx
+ni src\components\ScoreBoard.jsx
+ni src\components\GameMenu.jsx
+ni src\game\deck.js
+ni src\game\trucoRules.js
+ni src\game\cachetaRules.js
+ni src\game\pokerRules.js
+ni src\game\pacienciaRules.js
+ni src\game\porcoRules.js
+ni src\game\aiLogic.js
+ni src\context\GameContext.jsx
+ni src\utils\storage.js
+
+----------------------------------------------------
 -- ESTRUTURA DE PASTAS (criar manualmente no VS Code)
 ----------------------------------------------------
 
