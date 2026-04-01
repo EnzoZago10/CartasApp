@@ -1,3 +1,4 @@
+import 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 
@@ -19,37 +20,38 @@ export default function App() {
           headerStyle: { backgroundColor: '#1a1a2e' },
           headerTintColor: '#fff',
           headerTitleStyle: { fontWeight: 'bold' },
+          headerTitleAlign: 'center',
         }}
       >
         <Stack.Screen
           name="Home"
           component={HomeScreen}
-          options={{ title: 'CartasApp' }}
+          options={{ title: '🃏 CartasApp' }}
         />
         <Stack.Screen
           name="Truco"
           component={TrucoScreen}
-          options={{ title: 'Truco' }}
+          options={{ title: '🃏 Truco' }}
         />
         <Stack.Screen
           name="Cacheta"
           component={CachetaScreen}
-          options={{ title: 'Cacheta' }}
+          options={{ title: '🎴 Cacheta' }}
         />
         <Stack.Screen
           name="Poker"
           component={PokerScreen}
-          options={{ title: 'Pôquer' }}
+          options={{ title: '♠️ Pôquer' }}
         />
         <Stack.Screen
           name="Paciencia"
           component={PacienciaScreen}
-          options={{ title: 'Paciência' }}
+          options={{ title: '🂡 Paciência' }}
         />
         <Stack.Screen
           name="Porco"
           component={PorcoScreen}
-          options={{ title: 'Porco' }}
+          options={{ title: '🐷 Porco' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

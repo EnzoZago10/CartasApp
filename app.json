@@ -1,29 +1,25 @@
 {
   "expo": {
     "name": "CartasApp",
-    "slug": "CartasApp",
+    "slug": "cartasapp",
     "version": "1.0.0",
     "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "scheme": "cartas-app",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1a1a2e"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
+        "backgroundColor": "#1a1a2e"
+      }
     }
   }
 }
