@@ -1,37 +1,42 @@
-// Valor de cada carta no Porco
-export function valorCartaPorco(carta) {
-  if (['J', 'Q', 'K'].includes(carta.valor)) return 10;
-  if (carta.valor === 'A') return 1;
-  return parseInt(carta.valor);
+// PORCO — Jogo de passar cartas
+// Objetivo: ser o primeiro a colecionar 4 cartas do mesmo valor
+// Quando conseguir, toque o nariz antes dos outros!
+
+// Verifica se o jogador tem 4 cartas do mesmo valor
+export function temQuadra(mao) {
+  if (mao.length < 4) return false;
+  return mao.every(c => c.valor === mao[0].valor);
 }
 
-// Calcula a pontuação total da mão
-export function calcularPontuacaoPorco(mao) {
-  return mao.reduce((total, carta) => total + valorCartaPorco(carta), 0);
+// Verifica quantas cartas iguais o jogador tem (para estratégia da IA)
+export function maiorGrupo(mao) {
+  const contagem = {};
+  for (const carta of mao) {
+    contagem[carta.valor] = (contagem[carta.valor] || 0) + 1;
+  }
+  return Math.max(...Object.values(contagem));
 }
 
-// Verifica se estourou (passou de 21)
-export function estourou(mao) {
-  return calcularPontuacaoPorco(mao) > 21;
+// IA escolhe qual carta descartar (passa a carta mais "inútil")
+// Estratégia: descarta a carta do grupo com menor quantidade
+export function iaEscolherCartaPorco(maoIA) {
+  const contagem = {};
+  for (const carta of maoIA) {
+    contagem[carta.valor] = (contagem[carta.valor] || 0) + 1;
+  }
+
+  // Ordena cartas pelo grupo mais fraco (menor contagem)
+  const ordenadas = [...maoIA].sort(
+    (a, b) => contagem[a.valor] - contagem[b.valor]
+  );
+
+  return ordenadas[0];
 }
 
-// Verifica se tem 21 exato
-export function temVinteum(mao) {
-  return calcularPontuacaoPorco(mao) === 21;
-}
-
-// Resolve quem venceu
-export function resolverPorco(maoJogador, maoIA) {
-  const pj = calcularPontuacaoPorco(maoJogador);
-  const pi = calcularPontuacaoPorco(maoIA);
-
-  const jogadorEstourou = pj > 21;
-  const iaEstourou      = pi > 21;
-
-  if (jogadorEstourou && iaEstourou) return 'empate';
-  if (jogadorEstourou)  return 'ia';
-  if (iaEstourou)       return 'jogador';
-  if (pj > pi)          return 'jogador';
-  if (pi > pj)          return 'ia';
-  return 'empate';
+// Distribui 4 cartas para cada jogador
+export function distribuirCartas4(baralho) {
+  return {
+    maoJogador: baralho.slice(0, 4),
+    maoIA:      baralho.slice(4, 8),
+  };
 }

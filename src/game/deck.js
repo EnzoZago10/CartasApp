@@ -1,8 +1,9 @@
-// Naipes e valores do baralho
-const NAIPES = ['ouros', 'espadas', 'copas', 'paus'];
+const NAIPES  = ['ouros', 'espadas', 'copas', 'paus'];
 const VALORES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
-// Símbolos dos naipes para exibir na tela
+// Baralho do Truco usa 40 cartas (sem 8, 9 e 10)
+const VALORES_TRUCO = ['A', '2', '3', '4', '5', '6', '7', 'J', 'Q', 'K'];
+
 export const SIMBOLOS_NAIPES = {
   ouros:   '♦',
   espadas: '♠',
@@ -10,26 +11,31 @@ export const SIMBOLOS_NAIPES = {
   paus:    '♣',
 };
 
-// Cores dos naipes
 export const CORES_NAIPES = {
   ouros:   '#e63946',
-  espadas: '#fff',
+  espadas: '#1a1a2e',
   copas:   '#e63946',
-  paus:    '#fff',
+  paus:    '#1a1a2e',
 };
 
-// Cria um baralho completo com 52 cartas
+// Baralho completo de 52 cartas (Cacheta, Pôquer, Paciência, Porco)
 export function criarBaralho() {
   const baralho = [];
-  for (const naipe of NAIPES) {
-    for (const valor of VALORES) {
+  for (const naipe of NAIPES)
+    for (const valor of VALORES)
       baralho.push({ naipe, valor });
-    }
-  }
   return baralho;
 }
 
-// Embaralha o baralho
+// Baralho de 40 cartas para o Truco (sem 8, 9 e 10)
+export function criarBaralhoTruco() {
+  const baralho = [];
+  for (const naipe of NAIPES)
+    for (const valor of VALORES_TRUCO)
+      baralho.push({ naipe, valor });
+  return baralho;
+}
+
 export function embaralhar(baralho) {
   const embaralhado = [...baralho];
   for (let i = embaralhado.length - 1; i > 0; i--) {
@@ -39,7 +45,6 @@ export function embaralhar(baralho) {
   return embaralhado;
 }
 
-// Distribui as mãos para jogador e IA
 export function distribuirMaos(baralho, qtdCartas = 3) {
   const embaralhado = embaralhar(baralho);
   return {
@@ -49,7 +54,7 @@ export function distribuirMaos(baralho, qtdCartas = 3) {
   };
 }
 
-// Retorna o valor numérico de uma carta para comparações
+// Valor numérico para baralho padrão (Pôquer, Paciência, Cacheta)
 export function valorNumerico(carta) {
   const ordem = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
   return ordem.indexOf(carta.valor);

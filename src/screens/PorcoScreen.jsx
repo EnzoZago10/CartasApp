@@ -1,128 +1,133 @@
-import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Animated } from 'react-native';
 import { criarBaralho, embaralhar } from '../game/deck';
-import { calcularPontuacaoPorco, estourou, resolverPorco } from '../game/porcoRules';
-import { iaDecidirPorco } from '../game/aiLogic';
+import { temQuadra, iaEscolherCartaPorco, distribuirCartas4 } from '../game/porcoRules';
 import Card from '../components/Card';
 import ScoreBoard from '../components/ScoreBoard';
 
 export default function PorcoScreen() {
-  const [maoJogador, setMaoJogador] = useState([]);
-  const [maoIA, setMaoIA]           = useState([]);
-  const [pilha, setPilha]           = useState([]);
-  const [pontos, setPontos]         = useState({ jogador: 0, ia: 0 });
-  const [rodada, setRodada]         = useState(1);
-  const [fase, setFase]             = useState('jogando'); // 'jogando' ou 'fim'
-  const [mensagem, setMensagem]     = useState('Compre uma carta ou pare!');
-  const [iaParou, setIaParou]       = useState(false);
+  const [maoJogador, setMaoJogador]   = useState([]);
+  const [maoIA, setMaoIA]             = useState([]);
+  const [pontos, setPontos]           = useState({ jogador: 0, ia: 0 });
+  const [rodada, setRodada]           = useState(1);
+  const [mensagem, setMensagem]       = useState('Escolha uma carta para passar para a IA!');
+  const [fase, setFase]               = useState('jogando'); // 'jogando' | 'nariz' | 'fim'
+  const [narizVisivel, setNarizVisivel] = useState(false);
+  const piscar                          = useRef(new Animated.Value(1)).current;
 
   useEffect(() => { iniciarPartida(); }, []);
 
+  // Animação do botão nariz piscando
+  useEffect(() => {
+    if (narizVisivel) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(piscar, { toValue: 0.2, duration: 300, useNativeDriver: true }),
+          Animated.timing(piscar, { toValue: 1,   duration: 300, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      piscar.setValue(1);
+    }
+  }, [narizVisivel]);
+
   function iniciarPartida() {
     const baralho = embaralhar(criarBaralho());
-    setMaoJogador([baralho[0]]);
-    setMaoIA([baralho[1]]);
-    setPilha(baralho.slice(2));
+    const { maoJogador, maoIA } = distribuirCartas4(baralho);
+    setMaoJogador(maoJogador);
+    setMaoIA(maoIA);
     setFase('jogando');
-    setIaParou(false);
-    setRodada(prev => prev + 1);
-    setMensagem('Compre uma carta ou pare!');
+    setNarizVisivel(false);
+    setMensagem('Escolha uma carta para passar para a IA!');
   }
 
-  function comprarCarta() {
+  function passarCarta(carta) {
     if (fase !== 'jogando') return;
-    if (pilha.length === 0) {
-      setMensagem('Pilha vazia!');
+
+    // Jogador passa a carta escolhida para a IA
+    const novaMaoJogador = maoJogador.filter(c => c !== carta);
+
+    // IA escolhe qual carta vai passar para o jogador
+    const cartaPassadaIA = iaEscolherCartaPorco(maoIA);
+    const novaMaoIA = maoIA.filter(c => c !== cartaPassadaIA);
+
+    // Troca: jogador recebe carta da IA, IA recebe carta do jogador
+    const maoJogadorFinal = [...novaMaoJogador, cartaPassadaIA];
+    const maoIAFinal      = [...novaMaoIA, carta];
+
+    setMaoJogador(maoJogadorFinal);
+    setMaoIA(maoIAFinal);
+
+    // Verifica se a IA formou quadra
+    if (temQuadra(maoIAFinal)) {
+      setMensagem('👃 A IA tocou o nariz! Toque rápido antes que seja tarde!');
+      setNarizVisivel(true);
+      setFase('nariz');
+
+      // IA "tocou o nariz" — jogador tem 3 segundos para reagir
+      setTimeout(() => {
+        if (fase !== 'fim') {
+          // Jogador não tocou a tempo
+          const novosPontos = { ...pontos, ia: pontos.ia + 1 };
+          setPontos(novosPontos);
+          setNarizVisivel(false);
+          setFase('fim');
+          Alert.alert(
+            '😢 Tarde demais!',
+            `A IA formou quadra de ${maoIAFinal[0].valor} e você não tocou o nariz a tempo!\n\nPlacar: Você ${novosPontos.jogador} x ${novosPontos.ia} IA`,
+            [{ text: 'Nova Rodada', onPress: () => { setRodada(p => p + 1); iniciarPartida(); } }]
+          );
+        }
+      }, 3000);
       return;
     }
 
-    const novaCarta   = pilha[0];
-    const novaPilha   = pilha.slice(1);
-    const novaMao     = [...maoJogador, novaCarta];
-
-    setPilha(novaPilha);
-    setMaoJogador(novaMao);
-
-    const pontuacao = calcularPontuacaoPorco(novaMao);
-
-    if (estourou(novaMao)) {
-      setMensagem(`💥 Você estourou com ${pontuacao} pontos!`);
-      setFase('fim');
-      setTimeout(() => encerrarRodada(novaMao, maoIA), 1000);
+    // Verifica se o jogador formou quadra
+    if (temQuadra(maoJogadorFinal)) {
+      setMensagem('👃 Você formou quadra! Toque no nariz agora!');
+      setNarizVisivel(true);
+      setFase('nariz');
       return;
     }
 
-    if (pontuacao === 21) {
-      setMensagem('🎉 21 pontos exatos!');
-      setFase('fim');
-      setTimeout(() => encerrarRodada(novaMao, maoIA), 1000);
-      return;
-    }
-
-    setMensagem(`Você tem ${pontuacao} pontos. Comprar mais ou parar?`);
-
-    // IA joga se ainda não parou
-    if (!iaParou) {
-      setTimeout(() => turnoIA(novaPilha), 600);
-    }
+    setMensagem('Boa troca! Escolha outra carta para passar.');
   }
 
-  function turnoIA(pilhaAtual) {
-    const pontuacaoIA = calcularPontuacaoPorco(maoIA);
-    const decisao     = iaDecidirPorco(maoIA, pontuacaoIA);
+  function tocarNariz() {
+    if (fase !== 'nariz') return;
 
-    if (decisao === 'parar') {
-      setIaParou(true);
-      return;
-    }
-
-    if (pilhaAtual.length === 0) return;
-
-    const novaCarta = pilhaAtual[0];
-    const novaPilha = pilhaAtual.slice(1);
-    const novaMaoIA = [...maoIA, novaCarta];
-
-    setPilha(novaPilha);
-    setMaoIA(novaMaoIA);
-
-    if (estourou(novaMaoIA)) {
-      setIaParou(true);
-    }
-  }
-
-  function parar() {
-    if (fase !== 'jogando') return;
+    setNarizVisivel(false);
     setFase('fim');
-    encerrarRodada(maoJogador, maoIA);
-  }
 
-  function encerrarRodada(maoJ, maoI) {
-    const resultado  = resolverPorco(maoJ, maoI);
-    const pontuacaoJ = calcularPontuacaoPorco(maoJ);
-    const pontuacaoI = calcularPontuacaoPorco(maoI);
-
-    let titulo, novosPontos;
-
-    if (resultado === 'jogador') {
-      titulo      = `🏆 Você ganhou!\nVocê: ${pontuacaoJ} pts | IA: ${pontuacaoI} pts`;
-      novosPontos = { ...pontos, jogador: pontos.jogador + 1 };
-    } else if (resultado === 'ia') {
-      titulo      = `😢 A IA ganhou!\nVocê: ${pontuacaoJ} pts | IA: ${pontuacaoI} pts`;
-      novosPontos = { ...pontos, ia: pontos.ia + 1 };
+    // Verifica se o jogador formou quadra (tocou certo)
+    if (temQuadra(maoJogador)) {
+      const novosPontos = { ...pontos, jogador: pontos.jogador + 1 };
+      setPontos(novosPontos);
+      Alert.alert(
+        '🏆 Você tocou o nariz!',
+        `Você formou quadra de ${maoJogador[0].valor} e tocou o nariz!\n\nPlacar: Você ${novosPontos.jogador} x ${novosPontos.ia} IA`,
+        [{ text: 'Nova Rodada', onPress: () => { setRodada(p => p + 1); iniciarPartida(); } }]
+      );
     } else {
-      titulo      = `🤝 Empate!\nVocê: ${pontuacaoJ} pts | IA: ${pontuacaoI} pts`;
-      novosPontos = pontos;
+      // Tocou o nariz sem ter quadra — perde!
+      const novosPontos = { ...pontos, ia: pontos.ia + 1 };
+      setPontos(novosPontos);
+      Alert.alert(
+        '😅 Falso alarme!',
+        `Você tocou o nariz sem ter quadra! A IA ganha o ponto.\n\nPlacar: Você ${novosPontos.jogador} x ${novosPontos.ia} IA`,
+        [{ text: 'Nova Rodada', onPress: () => { setRodada(p => p + 1); iniciarPartida(); } }]
+      );
     }
-
-    setPontos(novosPontos);
-
-    Alert.alert(titulo, `Placar: Você ${novosPontos.jogador} x ${novosPontos.ia} IA`, [
-      { text: 'Nova Rodada', onPress: iniciarPartida },
-    ]);
   }
 
-  const pontuacaoJogador = calcularPontuacaoPorco(maoJogador);
-  const pontuacaoIA      = calcularPontuacaoPorco(maoIA);
+  // Conta cartas iguais na mão do jogador para mostrar progresso
+  function progressoQuadra(mao) {
+    const contagem = {};
+    for (const c of mao) contagem[c.valor] = (contagem[c.valor] || 0) + 1;
+    return Math.max(...Object.values(contagem));
+  }
+
+  const progresso = progressoQuadra(maoJogador);
 
   return (
     <View style={styles.container}>
@@ -133,16 +138,34 @@ export default function PorcoScreen() {
         rodada={rodada}
       />
 
-      {/* Cartas da IA */}
-      <View style={styles.secao}>
-        <Text style={styles.label}>
-          IA — {iaParou ? `${pontuacaoIA} pts (parou)` : `${maoIA.length} carta(s)`}
+      {/* Instrução */}
+      <View style={styles.instrucao}>
+        <Text style={styles.instrucaoTexto}>
+          🎯 Colete 4 cartas do mesmo valor e toque o nariz!
         </Text>
+      </View>
+
+      {/* Cartas da IA (todas viradas) */}
+      <View style={styles.secao}>
+        <Text style={styles.label}>IA — {maoIA.length} cartas</Text>
         <View style={styles.maoContainer}>
-          {maoIA.map((carta, i) => (
-            fase === 'fim'
-              ? <Card key={i} carta={carta} desabilitada />
-              : <Card key={i} carta={{ valor: '?', naipe: 'paus' }} virada />
+          {maoIA.map((_, i) => (
+            <Card key={i} carta={{ valor: '?', naipe: 'paus' }} virada />
+          ))}
+        </View>
+      </View>
+
+      {/* Progresso do jogador */}
+      <View style={styles.progressoContainer}>
+        <Text style={styles.progressoTexto}>
+          Seu progresso: {progresso}/4 cartas iguais
+        </Text>
+        <View style={styles.progressoBarra}>
+          {[1, 2, 3, 4].map(i => (
+            <View
+              key={i}
+              style={[styles.progressoPonto, i <= progresso && styles.progressoAtivo]}
+            />
           ))}
         </View>
       </View>
@@ -150,42 +173,35 @@ export default function PorcoScreen() {
       {/* Mensagem */}
       <Text style={styles.mensagem}>{mensagem}</Text>
 
-      {/* Suas cartas */}
+      {/* Suas cartas — toque para passar */}
       <View style={styles.secao}>
         <Text style={styles.label}>
-          Sua mão — {pontuacaoJogador} pontos
+          {fase === 'jogando' ? 'Toque em uma carta para passá-la à IA' : 'Sua mão'}
         </Text>
         <View style={styles.maoContainer}>
           {maoJogador.map((carta, i) => (
-            <Card key={i} carta={carta} desabilitada />
+            <Card
+              key={i}
+              carta={carta}
+              onPress={() => passarCarta(carta)}
+              desabilitada={fase !== 'jogando'}
+            />
           ))}
         </View>
       </View>
 
-      {/* Botões */}
-      <View style={styles.botoesContainer}>
-        <TouchableOpacity
-          style={[styles.botao, styles.botaoComprar,
-            fase !== 'jogando' && styles.botaoDesabilitado]}
-          onPress={comprarCarta}
-          disabled={fase !== 'jogando'}
-        >
-          <Text style={styles.botaoTexto}>🃏 Comprar</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.botao, styles.botaoParar,
-            fase !== 'jogando' && styles.botaoDesabilitado]}
-          onPress={parar}
-          disabled={fase !== 'jogando'}
-        >
-          <Text style={styles.botaoTexto}>✋ Parar</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Botão Nariz — aparece quando alguém forma quadra */}
+      {narizVisivel && (
+        <Animated.View style={[styles.narizContainer, { opacity: piscar }]}>
+          <TouchableOpacity style={styles.botaoNariz} onPress={tocarNariz}>
+            <Text style={styles.botaoNarizTexto}>👃 TOQUE O NARIZ!</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
 
       <TouchableOpacity
-        style={[styles.botao, styles.botaoNovo, { margin: 20 }]}
-        onPress={iniciarPartida}
+        style={[styles.botao, styles.botaoNovo]}
+        onPress={() => { setRodada(p => p + 1); iniciarPartida(); }}
       >
         <Text style={styles.botaoTexto}>🔄 Nova Partida</Text>
       </TouchableOpacity>
@@ -195,52 +211,35 @@ export default function PorcoScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-    paddingTop: 10,
+  container:          { flex: 1, backgroundColor: '#1a1a2e', paddingTop: 10 },
+  instrucao:          { backgroundColor: '#16213e', marginHorizontal: 20, marginBottom: 10, borderRadius: 10, padding: 10 },
+  instrucaoTexto:     { color: '#e9c46a', fontSize: 13, textAlign: 'center' },
+  secao:              { alignItems: 'center', marginVertical: 8 },
+  label:              { color: '#aaa', fontSize: 13, marginBottom: 6 },
+  maoContainer:       { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' },
+  progressoContainer: { alignItems: 'center', marginVertical: 8 },
+  progressoTexto:     { color: '#aaa', fontSize: 13, marginBottom: 6 },
+  progressoBarra:     { flexDirection: 'row', gap: 8 },
+  progressoPonto: {
+    width: 20, height: 20,
+    borderRadius: 10,
+    backgroundColor: '#333',
+    borderWidth: 1,
+    borderColor: '#555',
   },
-  secao: {
-    alignItems: 'center',
-    marginVertical: 10,
+  progressoAtivo:     { backgroundColor: '#e9c46a' },
+  mensagem:           { color: '#fff', fontSize: 15, textAlign: 'center', marginVertical: 6, paddingHorizontal: 20 },
+  narizContainer:     { alignItems: 'center', marginVertical: 10 },
+  botaoNariz: {
+    backgroundColor: '#e63946',
+    paddingVertical: 18,
+    paddingHorizontal: 40,
+    borderRadius: 16,
+    borderWidth: 3,
+    borderColor: '#fff',
   },
-  label: {
-    color: '#aaa',
-    fontSize: 13,
-    marginBottom: 6,
-  },
-  maoContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-  },
-  mensagem: {
-    color: '#fff',
-    fontSize: 16,
-    textAlign: 'center',
-    marginVertical: 10,
-    paddingHorizontal: 20,
-  },
-  botoesContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 20,
-    marginTop: 10,
-  },
-  botao: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginHorizontal: 6,
-  },
-  botaoComprar:      { backgroundColor: '#2a9d8f' },
-  botaoParar:        { backgroundColor: '#e63946' },
-  botaoNovo:         { backgroundColor: '#555' },
-  botaoDesabilitado: { opacity: 0.4 },
-  botaoTexto: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
+  botaoNarizTexto:    { color: '#fff', fontSize: 22, fontWeight: 'bold' },
+  botao:              { padding: 14, borderRadius: 12, alignItems: 'center', marginHorizontal: 20, marginTop: 8 },
+  botaoNovo:          { backgroundColor: '#555' },
+  botaoTexto:         { color: '#fff', fontSize: 15, fontWeight: 'bold' },
 });

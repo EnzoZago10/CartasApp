@@ -1,30 +1,34 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { criarBaralho, distribuirMaos } from '../game/deck';
-import { getManilha, resolverRodada } from '../game/trucoRules';
+import { criarBaralhoTruco, distribuirMaos } from '../game/deck';
+import { getManilha, resolverRodada, forcaCarta } from '../game/trucoRules';
 import { iaEscolherCartaTruco, iaDecidirTruco } from '../game/aiLogic';
 import Card from '../components/Card';
 import ScoreBoard from '../components/ScoreBoard';
 
+// Truco Paulista vai até 12 pontos
+const PONTOS_VITORIA = 12;
+
 export default function TrucoScreen() {
-  const [maoJogador, setMaoJogador]         = useState([]);
-  const [maoIA, setMaoIA]                   = useState([]);
-  const [vira, setVira]                     = useState(null);
-  const [manilha, setManilha]               = useState(null);
-  const [cartaJogador, setCartaJogador]     = useState(null);
-  const [cartaIA, setCartaIA]               = useState(null);
-  const [pontos, setPontos]                 = useState({ jogador: 0, ia: 0 });
-  const [vitorias, setVitorias]             = useState({ jogador: 0, ia: 0 });
-  const [rodada, setRodada]                 = useState(1);
-  const [mensagem, setMensagem]             = useState('Sua vez! Escolha uma carta.');
-  const [aguardando, setAguardando]         = useState(false);
+  const [maoJogador, setMaoJogador]     = useState([]);
+  const [maoIA, setMaoIA]               = useState([]);
+  const [vira, setVira]                 = useState(null);
+  const [manilha, setManilha]           = useState(null);
+  const [cartaJogador, setCartaJogador] = useState(null);
+  const [cartaIA, setCartaIA]           = useState(null);
+  const [pontos, setPontos]             = useState({ jogador: 0, ia: 0 });
+  const [vitorias, setVitorias]         = useState({ jogador: 0, ia: 0 });
+  const [pontosRodada, setPontosRodada] = useState(1); // 1, 3, 6, 9 ou 12
+  const [rodada, setRodada]             = useState(1);
+  const [mensagem, setMensagem]         = useState('Sua vez! Escolha uma carta.');
+  const [aguardando, setAguardando]     = useState(false);
 
-  useEffect(() => { iniciarPartida(); }, []);
+  useEffect(() => { iniciarMao(); }, []);
 
-  function iniciarPartida() {
-    const baralho = criarBaralho();
+  function iniciarMao() {
+    const baralho = criarBaralhoTruco(); // 40 cartas
     const { maoJogador, maoIA, restante } = distribuirMaos(baralho, 3);
-    const novaVira = restante[0];
+    const novaVira    = restante[0];
     const novaManilha = getManilha(novaVira);
 
     setMaoJogador(maoJogador);
@@ -34,19 +38,39 @@ export default function TrucoScreen() {
     setCartaJogador(null);
     setCartaIA(null);
     setVitorias({ jogador: 0, ia: 0 });
+    setPontosRodada(1);
     setRodada(1);
     setMensagem('Sua vez! Escolha uma carta.');
     setAguardando(false);
 
-    // IA decide se pede Truco logo no início
+    // IA decide se pede Truco logo de início
     if (iaDecidirTruco(maoIA, novaManilha)) {
       setTimeout(() => {
-        Alert.alert('Truco!', 'A IA pediu Truco! Você aceita?', [
-          { text: 'Aceitar', onPress: () => setMensagem('Truco aceito! Jogue sua carta.') },
-          { text: 'Correr',  onPress: () => encerrarPartida('ia') },
-        ]);
-      }, 1000);
+        Alert.alert(
+          '🗣️ TRUCO!',
+          'A IA pediu Truco! Vale 3 pontos. Você aceita?',
+          [
+            { text: '✅ Aceitar (3pts)', onPress: () => setPontosRodada(3) },
+            { text: '❌ Correr (IA ganha 1pt)', onPress: () => registrarPonto('ia', 1) },
+          ]
+        );
+      }, 800);
     }
+  }
+
+  function pedirTruco() {
+    if (pontosRodada >= 3) {
+      Alert.alert('Já foi pedido Truco!');
+      return;
+    }
+    Alert.alert(
+      '🗣️ TRUCO!',
+      'Você pediu Truco! A IA aceita?',
+      [
+        { text: 'IA aceita (3pts)', onPress: () => setPontosRodada(3) },
+        { text: 'IA corre (você ganha 1pt)', onPress: () => registrarPonto('jogador', 1) },
+      ]
+    );
   }
 
   function jogarCarta(carta) {
@@ -71,28 +95,31 @@ export default function TrucoScreen() {
 
       setVitorias(novasVitorias);
 
-      if (resultado === 'jogador') setMensagem('✅ Você ganhou essa rodada!');
-      else if (resultado === 'ia') setMensagem('❌ A IA ganhou essa rodada!');
-      else                         setMensagem('🤝 Empate nessa rodada!');
+      if (resultado === 'jogador')      setMensagem(`✅ Você ganhou a rodada ${rodada}!`);
+      else if (resultado === 'ia')      setMensagem(`❌ A IA ganhou a rodada ${rodada}!`);
+      else                              setMensagem(`🤝 Empate na rodada ${rodada}!`);
 
-      // Verifica se alguém ganhou 2 rodadas
       setTimeout(() => {
+        // Quem ganhar 2 rodadas vence a mão
         if (novasVitorias.jogador >= 2) {
-          encerrarPartida('jogador');
+          registrarPonto('jogador', pontosRodada);
         } else if (novasVitorias.ia >= 2) {
-          encerrarPartida('ia');
+          registrarPonto('ia', pontosRodada);
+        } else if (rodada >= 3) {
+          // Terceira rodada desempata
+          registrarPonto(resultado === 'empate' ? 'empate' : resultado, pontosRodada);
         } else {
-          proximaRodada();
+          proximaRodada(novasVitorias);
         }
       }, 1500);
 
     }, 1000);
   }
 
-  function proximaRodada() {
-    const baralho = criarBaralho();
+  function proximaRodada(vitoriasAtuais) {
+    const baralho = criarBaralhoTruco();
     const { maoJogador, maoIA, restante } = distribuirMaos(baralho, 3);
-    const novaVira = restante[0];
+    const novaVira    = restante[0];
     const novaManilha = getManilha(novaVira);
 
     setMaoJogador(maoJogador);
@@ -102,44 +129,70 @@ export default function TrucoScreen() {
     setCartaJogador(null);
     setCartaIA(null);
     setRodada(prev => prev + 1);
-    setMensagem('Sua vez! Escolha uma carta.');
+    setMensagem('Próxima rodada! Escolha uma carta.');
     setAguardando(false);
   }
 
-  function encerrarPartida(vencedor) {
+  function registrarPonto(vencedor, qtdPontos) {
+    if (vencedor === 'empate') {
+      setMensagem('🤝 Mão empatada!');
+      setTimeout(iniciarMao, 1500);
+      return;
+    }
+
     const novosPontos = {
-      jogador: pontos.jogador + (vencedor === 'jogador' ? 1 : 0),
-      ia:      pontos.ia      + (vencedor === 'ia'      ? 1 : 0),
+      jogador: pontos.jogador + (vencedor === 'jogador' ? qtdPontos : 0),
+      ia:      pontos.ia      + (vencedor === 'ia'      ? qtdPontos : 0),
     };
     setPontos(novosPontos);
 
-    const msg = vencedor === 'jogador' ? '🏆 Você ganhou a mão!' : '😢 A IA ganhou a mão!';
+    // Verifica vitória no jogo (12 pontos)
+    if (novosPontos.jogador >= PONTOS_VITORIA) {
+      Alert.alert('🏆 Você venceu o jogo!', 'Você chegou a 12 pontos!', [
+        { text: 'Novo Jogo', onPress: () => { setPontos({ jogador: 0, ia: 0 }); iniciarMao(); } },
+      ]);
+      return;
+    }
+    if (novosPontos.ia >= PONTOS_VITORIA) {
+      Alert.alert('😢 A IA venceu o jogo!', 'A IA chegou a 12 pontos!', [
+        { text: 'Novo Jogo', onPress: () => { setPontos({ jogador: 0, ia: 0 }); iniciarMao(); } },
+      ]);
+      return;
+    }
 
-    Alert.alert(msg, `Placar: Você ${novosPontos.jogador} x ${novosPontos.ia} IA`, [
-      { text: 'Nova Mão', onPress: iniciarPartida },
+    const msg = vencedor === 'jogador'
+      ? `🏆 Você ganhou a mão! +${qtdPontos} ponto(s)`
+      : `😢 A IA ganhou a mão! +${qtdPontos} ponto(s)`;
+
+    Alert.alert(msg, `Placar: Você ${novosPontos.jogador} x ${novosPontos.ia} IA\nPrimeiro a 12 vence!`, [
+      { text: 'Próxima Mão', onPress: iniciarMao },
     ]);
   }
 
   return (
     <View style={styles.container}>
 
-      {/* Placar */}
+      {/* Placar — exibe pontos até 12 */}
       <ScoreBoard
         pontuacaoJogador={pontos.jogador}
         pontuacaoIA={pontos.ia}
         rodada={rodada}
       />
+      <Text style={styles.metaTexto}>Primeiro a {PONTOS_VITORIA} pontos vence!</Text>
 
       {/* Vira e Manilha */}
       {vira && (
         <View style={styles.viraContainer}>
           <Text style={styles.viraLabel}>Vira</Text>
           <Card carta={vira} desabilitada />
-          <Text style={styles.manilhaLabel}>Manilha: <Text style={styles.manilha}>{manilha}</Text></Text>
+          <Text style={styles.manilhaLabel}>
+            Manilha: <Text style={styles.manilha}>{manilha}</Text>
+            {'  '}Rodada vale: <Text style={styles.manilha}>{pontosRodada}pt(s)</Text>
+          </Text>
         </View>
       )}
 
-      {/* Cartas na mesa */}
+      {/* Mesa */}
       <View style={styles.mesa}>
         <View style={styles.ladoMesa}>
           <Text style={styles.labelMesa}>IA</Text>
@@ -157,6 +210,13 @@ export default function TrucoScreen() {
         </View>
       </View>
 
+      {/* Vitórias de rodada */}
+      <View style={styles.vitoriasContainer}>
+        <Text style={styles.vitoriaTexto}>
+          Rodadas: Você {vitorias.jogador} x {vitorias.ia} IA
+        </Text>
+      </View>
+
       {/* Mensagem */}
       <Text style={styles.mensagem}>{mensagem}</Text>
 
@@ -172,83 +232,54 @@ export default function TrucoScreen() {
         ))}
       </View>
 
-      {/* Botão Nova Partida */}
-      <TouchableOpacity style={styles.botao} onPress={iniciarPartida}>
-        <Text style={styles.botaoTexto}>🔄 Nova Partida</Text>
-      </TouchableOpacity>
+      {/* Botões */}
+      <View style={styles.botoesContainer}>
+        <TouchableOpacity
+          style={[styles.botao, styles.botaoTruco]}
+          onPress={pedirTruco}
+          disabled={aguardando || pontosRodada >= 3}
+        >
+          <Text style={styles.botaoTexto}>🗣️ Truco!</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.botao, styles.botaoNovo]} onPress={iniciarMao}>
+          <Text style={styles.botaoTexto}>🔄 Nova Mão</Text>
+        </TouchableOpacity>
+      </View>
 
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-    paddingTop: 20,
-  },
-  viraContainer: {
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  viraLabel: {
-    color: '#aaa',
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  manilhaLabel: {
-    color: '#aaa',
-    fontSize: 14,
-    marginTop: 4,
-  },
-  manilha: {
-    color: '#e9c46a',
-    fontWeight: 'bold',
-  },
+  container:        { flex: 1, backgroundColor: '#1a1a2e', paddingTop: 10 },
+  metaTexto:        { color: '#e9c46a', fontSize: 12, textAlign: 'center', marginBottom: 8 },
+  viraContainer:    { alignItems: 'center', marginBottom: 6 },
+  viraLabel:        { color: '#aaa', fontSize: 13, marginBottom: 2 },
+  manilhaLabel:     { color: '#aaa', fontSize: 13, marginTop: 4 },
+  manilha:          { color: '#e9c46a', fontWeight: 'bold' },
   mesa: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginVertical: 10,
+    marginVertical: 8,
     paddingHorizontal: 20,
   },
-  ladoMesa: {
-    alignItems: 'center',
-  },
-  labelMesa: {
-    color: '#aaa',
-    fontSize: 14,
-    marginBottom: 6,
-  },
+  ladoMesa:         { alignItems: 'center' },
+  labelMesa:        { color: '#aaa', fontSize: 13, marginBottom: 4 },
   espacoCarta: {
-    width: 70,
-    height: 100,
+    width: 70, height: 100,
     borderRadius: 10,
     borderWidth: 2,
     borderColor: '#333',
     borderStyle: 'dashed',
   },
-  mensagem: {
-    color: '#fff',
-    fontSize: 16,
-    textAlign: 'center',
-    marginVertical: 10,
-    paddingHorizontal: 20,
-  },
-  maoContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 10,
-  },
-  botao: {
-    backgroundColor: '#e63946',
-    margin: 20,
-    padding: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  botaoTexto: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-});
+  vitoriasContainer: { alignItems: 'center', marginBottom: 4 },
+  vitoriaTexto:      { color: '#aaa', fontSize: 13 },
+  mensagem:          { color: '#fff', fontSize: 15, textAlign: 'center', marginVertical: 8, paddingHorizontal: 20 },
+  maoContainer:      { flexDirection: 'row', justifyContent: 'center', marginTop: 6 },
+  botoesContainer:   { flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 20, marginTop: 8 },
+  botao:             { flex: 1, padding: 14, borderRadius: 12, alignItems: 'center', marginHorizontal: 6 },
+  botaoTruco:        { backgroundColor: '#e63946' },
+  botaoNovo:         { backgroundColor: '#555' },
+  botaoTexto:        { color: '#fff', fontSize: 15, fontWeight: 'bold' },
+});0
